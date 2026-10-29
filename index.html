@@ -55047,7 +55047,7 @@ const garden=module('potala-gardens','13 · Tibetan courtyard buildings',[0,.35,
 const lights=module('potala-lights','14 · Prayer flags & lamps',[0,.35,0],1.1);for(let x of [-1.8,1.8])for(let z of [2.2,3.4]){rod(lights,[x,0,z],[x,.95,z],.025,'#a79b7f');box(.12,.18,.12,'#ead4a3',lights,x,1.02,z);box(.2,.06,.2,'#b8a17c',lights,x,1.15,z);}for(let side of [-1,1]){rod(lights,[side*4.2,0,-1],[side*4.2,2.7,-1],.025,'#b4a386');for(let i=0;i<8;i++){const flag=box(.23,.2,.015,['#b4bcd0','#ece0b8','#bb8b7c','#a7bfa8','#d5b36e'][i%5],lights,side*(4.2-i*.17),2.48-i*.12,-1);flag.rotation.z=side*-.15;}ball(.045,gold,lights,side*4.2,2.75,-1);}const plaque=label('POTALA PALACE',1.65,.22,'#ece0c7','#8b7160');plaque.rotation.x=-Math.PI/2;plaque.position.set(0,.02,3.45);lights.add(plaque);
 }
 
-let celebrationStart=-1,completionTimer=null,completionCheckTimer=null;
+let celebrationStart=-1,completionTimer=null,completionCheckTimer=null,completionReturned=false;
 const celebrationMaterials=new Map();
 function restoreCelebrationMaterials(){for(const [m,original] of celebrationMaterials){m.emissive.copy(original.color);m.emissiveIntensity=original.intensity;}celebrationMaterials.clear();}
 function clearCelebration(){clearTimeout(completionCheckTimer);completionCheckTimer=null;clearTimeout(completionTimer);completionTimer=null;celebrationStart=-1;restoreCelebrationMaterials();document.body.classList.remove('completion-showcase','celebrating');}
@@ -55107,6 +55107,8 @@ $('#reset').onclick=reset;$('#hint').onclick=()=>{const p=pieces.find(p=>!p.plac
 $('#next').onclick=()=>level>=7?showChina():showMap(false);$('#continue').onclick=()=>level>=7||(level===6&&economy.chinaOpen)?showChina():showMap(true);
 function loadLevel(next){
 clearCelebration();
+// Every newly built puzzle starts its own completion lifecycle.
+completionReturned=false;
 clearTimeout(toastTimer);$('#toast').classList.remove('show');
 endDrag(true);pointers.clear();gesture=null;hover=null;hintUntil=0;$('#hint-guide').style.display='none';pieces.forEach(p=>p.cell.classList.remove('hinted'));if(hintLine){scene.remove(hintLine);hintLine.geometry.dispose();hintLine.material.dispose();hintLine=null;}
 const retired=new Set();for(const p of pieces){for(const root of [p.model,p.outline,p.ghost,p.preview])root.traverse(o=>{if(o.geometry)retired.add(o.geometry);if(o.material){if(o.material.map)o.material.map.dispose();o.material.dispose();}});scene.remove(p.model,p.outline,p.ghost);}for(const g of retired)g.dispose();for(const p of particles){scene.remove(p.m);p.m.geometry.dispose();}particles.length=0;referenceScene.children.filter(o=>o.userData.reference).forEach(o=>referenceScene.remove(o));pieces.length=0;targets.length=0;modules.length=0;rack.replaceChildren();level=next;background=levelBackgrounds[level];scene.background.set(background);referenceScene.background.set(background);document.body.style.setProperty('--level-background',background);document.body.dataset.level=String(level);[null,buildHKU,buildHarbour,buildDisney,buildOceanPark,buildMongKok,buildAirport,buildBeijing,buildShanghai,buildChongqing,buildCanton,buildTaipei,buildPotala][level]();applyDifficulty();document.body.dataset.difficulty=level===1?'normal':difficulty;const night=level===5;hemisphere.intensity=referenceHemisphere.intensity=night?.95:2.5;sun.intensity=referenceSun.intensity=night?.65:3.5;renderer.toneMappingExposure=referenceRenderer.toneMappingExposure=night?1:1.2;buildRack();buildReference();$('#level').textContent=String(level).padStart(2,'0');$('#level-title').textContent=landmarkName(level).toUpperCase()+(level===1?'':' · '+difficulty.toUpperCase());$('#complete h2').textContent='A campus landmark, whole again.';$('#complete p').textContent='Eight modules complete. Hong Kong shines a little brighter.';$('#continue').textContent='Back to Hong Kong map →';$('#next').textContent=level>=7?'China map':'Hong Kong map';$('#complete').hidden=true;theta=level===2?.18:level===5?.16:.46;phi=level===2||level===5?1.02:.85;focus.set(0,level===3||level===11?2:level===5?1.8:level>=2?1.3:1,0);resize();updateProgress();
@@ -55123,7 +55125,7 @@ const intro=$('#intro'),introGif=$('#intro-gif'),demoSource=introGif.getAttribut
 function setDemoPaused(paused){demoPaused=paused;introGif.src=paused?demoPoster:demoSource;$('#demo-toggle').textContent=paused?'Play demo':'Pause demo';}
 function showIntro(first=false){$('#start-game').textContent=first?`Start Level ${String(level).padStart(2,'0')} →`:'Continue playing →';setDemoPaused(matchMedia('(prefers-reduced-motion: reduce)').matches);if(!intro.open)intro.showModal();$('#start-game').focus();}
 $('#start-game').onclick=()=>intro.close();intro.addEventListener('close',()=>{setDemoPaused(true);canvas.focus({preventScroll:true});});$('#how-to-play').onclick=()=>showIntro(false);$('#demo-toggle').onclick=()=>setDemoPaused(!demoPaused);canvas.tabIndex=0;
-const completedLevels=new Set(economy.hkCompleted);let completionReturned=false;
+const completedLevels=new Set(economy.hkCompleted);
 const mapScreen=$('#map-screen');
 function showMap(completed=false){
 clearCelebration();endDrag(true);pointers.clear();gesture=null;
@@ -55154,7 +55156,7 @@ function enterLevel(next){
  if(next===1){startLevel(next);return;}
  pendingLevel=next;selectDifficulty('normal');$('#difficulty-destination').textContent=landmarkName(next);difficultyDialog.showModal();difficultyDialog.querySelector('[data-difficulty="normal"]').focus();
 }
-function startLevel(next){if(!economy.isUnlocked(levelKey(next)))return;$('#china-screen').hidden=true;if(next!==level){loadLevel(next);completionReturned=false;}else if(economy.isCompleted(levelKey(next)))reset();mapScreen.hidden=true;document.body.classList.remove('on-map');if(next===1&&!economy.isCompleted('hk-1'))showIntro(true);else canvas.focus({preventScroll:true});}
+function startLevel(next){if(!economy.isUnlocked(levelKey(next)))return;$('#china-screen').hidden=true;if(next!==level){loadLevel(next);}else if(economy.isCompleted(levelKey(next)))reset();mapScreen.hidden=true;document.body.classList.remove('on-map');if(next===1&&!economy.isCompleted('hk-1'))showIntro(true);else canvas.focus({preventScroll:true});}
 $('#hku-landmark').onclick=()=>enterLevel(1);$('#avenue-landmark').onclick=()=>enterLevel(2);$('#disney-landmark').onclick=()=>enterLevel(3);$('#ocean-landmark').onclick=()=>enterLevel(4);$('#mongkok-landmark').onclick=()=>enterLevel(5);$('#airport-landmark').onclick=()=>enterLevel(6);
 function showChina(){
 if(!economy.chinaOpen){showMap();return;}
